@@ -1,5 +1,11 @@
 package com.tkachenko.yevgeniy.android;
 
+import android.content.Context;
+import android.net.Uri;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Date;
 
 /**
@@ -11,19 +17,37 @@ public class Note {
     public String content;
     public int priority;
     public Date createdAt;
-    public String imagePath;
+    public byte[] image;
     public int id;
 
-    private static int nextId = 1;
-
-    public Note(String title, String content, int priority, String imagePath) {
-        id = nextId;
+    public Note(int id, String title, String content, int priority, byte[] image, Date date) {
+        this.id = id;
         this.title = title;
         this.content = content;
         this.priority = priority;
-        this.imagePath = imagePath;
-        this.createdAt = new Date();
+        this.image = image;
+        this.createdAt = date;
+    }
 
-        nextId++;
+    public void setImage(String imagePath, Context context) {
+        Uri uri = Uri.parse(imagePath);
+        try {
+            final InputStream imageStream = context.getContentResolver().openInputStream(uri);
+
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+            int nRead;
+            byte[] data = new byte[16384];
+
+            while ((nRead = imageStream.read(data, 0, data.length)) != -1) {
+                buffer.write(data, 0, nRead);
+            }
+
+            buffer.flush();
+
+            this.image = buffer.toByteArray();
+        } catch (IOException e) {
+
+        }
     }
 }

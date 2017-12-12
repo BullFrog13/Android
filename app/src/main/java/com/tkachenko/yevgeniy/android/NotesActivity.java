@@ -1,5 +1,6 @@
 package com.tkachenko.yevgeniy.android;
 
+import android.app.DialogFragment;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -12,7 +13,7 @@ import android.view.MenuItem;
 
 public class NotesActivity extends AppCompatActivity {
     private RecyclerView recyclerView;
-    private RecyclerView.Adapter adapter;
+    private NotesAdapter adapter;
     private RecyclerView.LayoutManager layoutManager;
 
     @Override
@@ -20,13 +21,13 @@ public class NotesActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_notes);
 
-        this.recyclerView = (RecyclerView) findViewById(R.id.notesRecyclerView);
+        this.recyclerView = (RecyclerView) findViewById(R.id.notes_recycler_view);
         this.recyclerView.setHasFixedSize(true);
 
         this.layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(this.layoutManager);
 
-        adapter = new NotesAdapter();
+        adapter = new NotesAdapter(this, Database.getDatabase().getNotes());
         recyclerView.setAdapter(adapter);
 
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -47,21 +48,58 @@ public class NotesActivity extends AppCompatActivity {
         // Handle item selection
         switch (item.getItemId()) {
             case R.id.add_note_item:
-                Intent intent = new Intent(this, AddNoteActivity.class);
+                Intent intent = new Intent(this, NoteEditorActivity.class);
+                intent.putExtra(NoteEditorActivity.NOTE_ID, -1);
                 startActivity(intent);
-            default:
-                return super.onOptionsItemSelected(item);
+                break;
+            case R.id.filter_by_priority:
+                DialogFragment priorityDialog = new PriorityFilterDialog();
+                priorityDialog.show(getFragmentManager(), "Filter by priority");
+                break;
+            case R.id.filter_by_content:
+                DialogFragment contentDialog = new ContentFilterDialog();
+                contentDialog.show(getFragmentManager(), "Filter by content");
+                break;
+            case R.id.clear_filters:
+                adapter.dataset = Database.getDatabase().getNotes();
+                adapter.notifyDataSetChanged();
         }
+
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
     public boolean onContextItemSelected(MenuItem item) {
-        int[] tag = (int[]) item.getActionView().getTag();
-        int position = tag[0];
-        int id = tag[1];
-        Database.removeNote(id);
-        adapter.notifyItemRemoved(position);
-        adapter.notifyItemRangeChanged(position, Database.count());
+        String action = item.getTitle().toString();
+
+        if (action.equals("Delete")) {
+            int[] tag = (int[]) item.getActionView().getTag();
+            int position = tag[0];
+            int id = tag[1];
+            adapter.removeById(id);
+            Database.getDatabase().removeNote(id);
+            adapter.notifyDataSetChanged();
+            return true;
+        } else if (action.equals("Edit")) {
+            int[] tag = (int[]) item.getActionView().getTag();
+            int position = tag[0];
+            int id = tag[1];
+
+            Intent intent = new Intent(this, NoteEditorActivity.class);
+            intent.putExtra(NoteEditorActivity.NOTE_ID, id);
+            startActivity(intent);
+        }
+
         return true;
+    }
+
+    public void filterByPriority(int priority) {
+        adapter.dataset = Database.getDatabase().filterByPriority(priority);
+        adapter.notifyDataSetChanged();
+    }
+
+    public void filterByContent(String content) {
+        adapter.dataset = Database.getDatabase().filterByContent(content);
+        adapter.notifyDataSetChanged();
     }
 }
